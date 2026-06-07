@@ -1,0 +1,777 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import pickle
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import seaborn as sns
+import warnings
+from datetime import datetime, time
+warnings.filterwarnings('ignore')
+
+# ─── Page Config ────────────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="ITSM AI — ABC Tech",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# ─── Theme ──────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'DM Sans', sans-serif;
+    background-color: #0b0f1a;
+    color: #e2e8f0;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: #111827;
+    border-right: 1px solid #1e293b;
+}
+
+/* Main background */
+.main .block-container {
+    background-color: #0b0f1a;
+    padding-top: 1.5rem;
+    padding-bottom: 3rem;
+}
+
+/* Cards */
+.card {
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Metric cards */
+.metric-card {
+    background: linear-gradient(135deg, #111827, #1a2235);
+    border: 1px solid #1e3a5f;
+    border-radius: 10px;
+    padding: 1.2rem 1.5rem;
+    text-align: center;
+}
+.metric-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #38bdf8;
+    line-height: 1.1;
+}
+.metric-label {
+    font-size: 0.78rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 0.3rem;
+}
+
+/* Priority badges */
+.badge-p1 { background:#7f1d1d; color:#fca5a5; padding:3px 10px; border-radius:20px; font-size:0.82rem; font-weight:600; }
+.badge-p2 { background:#7c2d12; color:#fdba74; padding:3px 10px; border-radius:20px; font-size:0.82rem; font-weight:600; }
+.badge-p3 { background:#713f12; color:#fde68a; padding:3px 10px; border-radius:20px; font-size:0.82rem; font-weight:600; }
+.badge-p4 { background:#14532d; color:#86efac; padding:3px 10px; border-radius:20px; font-size:0.82rem; font-weight:600; }
+.badge-p5 { background:#1e3a5f; color:#93c5fd; padding:3px 10px; border-radius:20px; font-size:0.82rem; font-weight:600; }
+
+/* HIGH PRIORITY alert */
+.alert-high {
+    background: linear-gradient(135deg, #450a0a, #7f1d1d);
+    border: 1px solid #ef4444;
+    border-radius: 10px;
+    padding: 1.2rem 1.5rem;
+    color: #fca5a5;
+    font-weight: 600;
+    font-size: 1rem;
+    animation: pulse 1.5s ease-in-out infinite alternate;
+}
+.alert-normal {
+    background: linear-gradient(135deg, #052e16, #14532d);
+    border: 1px solid #22c55e;
+    border-radius: 10px;
+    padding: 1.2rem 1.5rem;
+    color: #86efac;
+    font-weight: 600;
+    font-size: 1rem;
+}
+.alert-rfc {
+    background: linear-gradient(135deg, #1e1b4b, #312e81);
+    border: 1px solid #818cf8;
+    border-radius: 10px;
+    padding: 1rem 1.5rem;
+    color: #c7d2fe;
+    font-size: 0.92rem;
+}
+
+@keyframes pulse {
+    from { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+    to   { box-shadow: 0 0 12px 4px rgba(239,68,68,0.15); }
+}
+
+/* Section headers */
+.section-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    color: #38bdf8;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.4rem;
+    border-bottom: 1px solid #1e3a5f;
+    padding-bottom: 0.4rem;
+}
+
+/* Streamlit tweaks */
+div[data-testid="stSelectbox"] label,
+div[data-testid="stSlider"] label,
+div[data-testid="stNumberInput"] label {
+    color: #94a3b8 !important;
+    font-size: 0.82rem !important;
+}
+
+.stButton>button {
+    background: linear-gradient(135deg, #0ea5e9, #2563eb);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 2rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    width: 100%;
+    transition: opacity 0.2s;
+}
+.stButton>button:hover { opacity: 0.85; }
+
+.stTabs [data-baseweb="tab-list"] {
+    background: #111827;
+    border-radius: 10px;
+    padding: 4px;
+    gap: 4px;
+    border: 1px solid #1e293b;
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 8px;
+    color: #64748b;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+    padding: 0.5rem 1.2rem;
+}
+.stTabs [aria-selected="true"] {
+    background: #1e3a5f !important;
+    color: #38bdf8 !important;
+}
+
+hr { border-color: #1e293b; }
+
+/* hide streamlit branding */
+#MainMenu, footer, header { visibility: hidden; }
+</style>
+""", unsafe_allow_html=True)
+
+# ─── Load Models ─────────────────────────────────────────────────────────────
+@st.cache_resource
+def load_models():
+    models = {}
+    files = {
+        'priority':     'itsm_priority_model.pkl',
+        'highpriority': 'itsm_highpriority_model.pkl',
+        'scaler':       'itsm_scaler.pkl',
+        'rfc':          'itsm_rfc_model.pkl',
+    }
+    for key, fname in files.items():
+        try:
+            with open(fname, 'rb') as f:
+                models[key] = pickle.load(f)
+        except FileNotFoundError:
+            models[key] = None
+    return models
+
+models = load_models()
+
+FEATURE_COLS = [
+    'CI_Cat', 'CI_Subcat', 'Category', 'Closure_Code',
+    'No_of_Reassignments', 'No_of_Related_Interactions',
+    'Handle_Time_hrs', 'CI_Name_freq',
+    'Open_Hour', 'Open_DayOfWeek', 'Open_Month', 'Open_Year',
+    'Is_Weekend', 'Is_BusinessHour'
+]
+
+FEAT_T4 = [c for c in FEATURE_COLS if c != 'No_of_Related_Changes']
+
+PRIORITY_LABELS = {1:'P1 — Critical', 2:'P2 — High', 3:'P3 — Medium', 4:'P4 — Low', 5:'P5 — Very Low'}
+PRIORITY_COLORS = {1:'#ef4444', 2:'#f97316', 3:'#eab308', 4:'#22c55e', 5:'#3b82f6'}
+
+CI_CAT_OPTIONS   = ['Hardware', 'Software', 'Network', 'Database', 'Security', 'Application', 'Infrastructure']
+CI_SUBCAT_OPTIONS= ['Web Based Application', 'Desktop App', 'Server', 'Router', 'Switch', 'Storage', 'VM', 'Firewall']
+CATEGORY_OPTIONS = ['incident', 'problem', 'change', 'service request']
+CLOSURE_OPTIONS  = ['Resolved', 'Closed', 'Cancelled', 'Other', 'Duplicate']
+ALERT_OPTIONS    = ['closed', 'open', 'none']
+
+def encode_label(val, options):
+    try:
+        return options.index(val)
+    except ValueError:
+        return 0
+
+def build_feature_vector(inputs):
+    row = {col: 0 for col in FEATURE_COLS}
+    row['CI_Cat']                    = encode_label(inputs['ci_cat'],    CI_CAT_OPTIONS)
+    row['CI_Subcat']                 = encode_label(inputs['ci_subcat'], CI_SUBCAT_OPTIONS)
+    row['Category']                  = encode_label(inputs['category'],  CATEGORY_OPTIONS)
+    row['Closure_Code']              = encode_label(inputs['closure'],   CLOSURE_OPTIONS)
+    row['No_of_Reassignments']       = inputs['reassignments']
+    row['No_of_Related_Interactions']= inputs['interactions']
+    row['Handle_Time_hrs']           = inputs['handle_time']
+    row['CI_Name_freq']              = inputs['ci_freq']
+    row['Open_Hour']                 = inputs['hour']
+    row['Open_DayOfWeek']            = inputs['dow']
+    row['Open_Month']                = inputs['month']
+    row['Open_Year']                 = inputs['year']
+    row['Is_Weekend']                = 1 if inputs['dow'] >= 5 else 0
+    row['Is_BusinessHour']           = 1 if 9 <= inputs['hour'] <= 18 else 0
+    return pd.DataFrame([row])
+
+def plot_style():
+    plt.rcParams.update({
+        'figure.facecolor': '#111827',
+        'axes.facecolor':   '#111827',
+        'axes.edgecolor':   '#1e293b',
+        'axes.labelcolor':  '#94a3b8',
+        'xtick.color':      '#64748b',
+        'ytick.color':      '#64748b',
+        'text.color':       '#e2e8f0',
+        'grid.color':       '#1e293b',
+        'grid.alpha':       0.5,
+    })
+
+# ─── Sidebar ─────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("""
+    <div style='text-align:center; padding: 1rem 0 1.5rem 0;'>
+        <div style='font-family: Space Mono, monospace; font-size:1.4rem; font-weight:700; color:#38bdf8;'>🛡️ ITSM AI</div>
+        <div style='font-size:0.72rem; color:#475569; letter-spacing:0.1em; text-transform:uppercase; margin-top:4px;'>ABC Tech Intelligence</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div class='section-title'>Model Status</div>", unsafe_allow_html=True)
+
+    model_info = [
+        ("Priority Auto-Tag",   "priority",     "XGBoost",  "0.82 Acc"),
+        ("High-Priority Alert", "highpriority", "XGBoost",  "0.98 Acc"),
+        ("RFC Predictor",       "rfc",          "RF",       "0.98 Acc"),
+        ("Scaler",              "scaler",       "StandardScaler", "—"),
+    ]
+    for label, key, algo, metric in model_info:
+        status = "🟢" if models.get(key) else "🔴"
+        st.markdown(f"""
+        <div style='display:flex; justify-content:space-between; align-items:center;
+                    padding:6px 4px; border-bottom:1px solid #1e293b; font-size:0.8rem;'>
+            <span>{status} {label}</span>
+            <span style='color:#475569; font-family:Space Mono,monospace; font-size:0.7rem;'>{metric}</span>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>Model Performance</div>", unsafe_allow_html=True)
+
+    perf = {
+        'Task 1 — High Priority': {'Accuracy': 0.98, 'F1': 0.98},
+        'Task 2 — Forecasting':   {'Accuracy': None, 'F1': 0.31},
+        'Task 3 — Auto-Tag':      {'Accuracy': 0.82, 'F1': 0.71},
+        'Task 4 — RFC':           {'Accuracy': 0.98, 'F1': 0.68},
+    }
+    for task, scores in perf.items():
+        acc_str = f"{scores['Accuracy']:.0%}" if scores['Accuracy'] else "—"
+        f1_str  = f"{scores['F1']:.2f}" if scores['Accuracy'] else f"R²={scores['F1']:.2f}"
+        st.markdown(f"""
+        <div style='padding:5px 4px; font-size:0.75rem; border-bottom:1px solid #1e293b;'>
+            <div style='color:#cbd5e1;'>{task}</div>
+            <div style='color:#64748b; font-family:Space Mono,monospace;'>Acc:{acc_str} · F1:{f1_str}</div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.caption("PRCL-0012 | DataMites™ | ABC Tech")
+
+# ─── Header ──────────────────────────────────────────────────────────────────
+st.markdown("""
+<div style='margin-bottom:1.5rem;'>
+    <h1 style='font-family:Space Mono,monospace; font-size:1.6rem; font-weight:700;
+               color:#f1f5f9; margin:0; letter-spacing:-0.02em;'>
+        ITSM Incident Intelligence Platform
+    </h1>
+    <p style='color:#475569; font-size:0.85rem; margin:4px 0 0 0;'>
+        Real-time ML predictions · Priority tagging · Volume forecasting · RFC detection
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+# ─── Tabs ─────────────────────────────────────────────────────────────────────
+tab1, tab2, tab3, tab4 = st.tabs(["🔮  Predict", "📊  Analyze", "📈  Forecast", "🗂️  Dashboard"])
+
+# ═══════════════════════════════════════════════════════════════════
+# TAB 1 — PREDICT
+# ═══════════════════════════════════════════════════════════════════
+with tab1:
+    st.markdown("<div class='section-title'>Ticket Input — Real-time Prediction</div>", unsafe_allow_html=True)
+
+    col_l, col_r = st.columns([1.1, 1], gap="large")
+
+    with col_l:
+        st.markdown("**Ticket Details**")
+        c1, c2 = st.columns(2)
+        with c1:
+            ci_cat    = st.selectbox("CI Category",    CI_CAT_OPTIONS)
+            category  = st.selectbox("Ticket Category", CATEGORY_OPTIONS)
+            closure   = st.selectbox("Closure Code",   CLOSURE_OPTIONS)
+        with c2:
+            ci_subcat = st.selectbox("CI Sub-Category", CI_SUBCAT_OPTIONS)
+            reassign  = st.number_input("No. of Reassignments", 0, 50, 0)
+            interact  = st.number_input("Related Interactions",  0, 50, 1)
+
+        st.markdown("**Timing & CI Info**")
+        c3, c4 = st.columns(2)
+        with c3:
+            open_time = st.time_input("Ticket Open Time", value=time(9, 0))
+            open_date = st.date_input("Ticket Open Date", value=datetime.today())
+        with c4:
+            handle_hrs = st.number_input("Handle Time (hrs)", 0.0, 5000.0, 2.0, step=0.5)
+            ci_freq    = st.number_input("CI Frequency (tickets/yr)", 0, 10000, 50)
+
+        predict_btn = st.button("⚡  Run All Predictions")
+
+    with col_r:
+        if predict_btn:
+            dow = open_date.weekday()
+            inputs = dict(
+                ci_cat=ci_cat, ci_subcat=ci_subcat, category=category,
+                closure=closure, reassignments=reassign, interactions=interact,
+                handle_time=handle_hrs, ci_freq=ci_freq,
+                hour=open_time.hour, dow=dow,
+                month=open_date.month, year=open_date.year
+            )
+            X = build_feature_vector(inputs)
+
+            if models['scaler']:
+                X_sc = models['scaler'].transform(X)
+            else:
+                X_sc = X.values
+
+            # ── Task 1: High Priority ──
+            st.markdown("<div class='section-title'>Task 1 — High Priority Alert</div>", unsafe_allow_html=True)
+            if models['highpriority']:
+                hp = models['highpriority'].predict(X_sc)[0]
+                hp_prob = models['highpriority'].predict_proba(X_sc)[0][1]
+                if hp == 1:
+                    st.markdown(f"""<div class='alert-high'>
+                        🚨 HIGH PRIORITY TICKET DETECTED<br>
+                        <span style='font-size:0.82rem; font-weight:400;'>
+                        Confidence: {hp_prob:.1%} — Escalate immediately to on-call engineer</span>
+                    </div>""", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""<div class='alert-normal'>
+                        ✅ Normal Priority Ticket<br>
+                        <span style='font-size:0.82rem; font-weight:400;'>
+                        High-Priority probability: {hp_prob:.1%}</span>
+                    </div>""", unsafe_allow_html=True)
+            else:
+                st.warning("High Priority model not loaded.")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ── Task 3: Priority Auto-Tag ──
+            st.markdown("<div class='section-title'>Task 3 — Priority Auto-Tag (P2–P5)</div>", unsafe_allow_html=True)
+            if models['priority']:
+                y_min = 2
+                pred_raw = models['priority'].predict(X_sc)[0]
+                priority = int(pred_raw) + y_min
+                priority = max(2, min(5, priority))
+                proba = models['priority'].predict_proba(X_sc)[0]
+
+                badge_cls = f"badge-p{priority}"
+                p_label   = PRIORITY_LABELS.get(priority, f"P{priority}")
+                st.markdown(f"""
+                <div class='card' style='text-align:center;'>
+                    <div style='font-size:0.78rem; color:#64748b; margin-bottom:8px;'>PREDICTED PRIORITY</div>
+                    <span class='{badge_cls}' style='font-size:1.1rem; padding:6px 20px;'>{p_label}</span>
+                </div>""", unsafe_allow_html=True)
+
+                # Probability bar chart
+                plot_style()
+                fig, ax = plt.subplots(figsize=(5, 2.2))
+                classes = [f"P{i}" for i in range(2, 2+len(proba))]
+                colors  = [PRIORITY_COLORS.get(i+2, '#38bdf8') for i in range(len(proba))]
+                bars = ax.barh(classes, proba, color=colors, height=0.5)
+                ax.set_xlim(0, 1)
+                ax.set_xlabel("Probability", fontsize=8)
+                ax.set_title("Class Probabilities", fontsize=9, color='#94a3b8')
+                for bar, p in zip(bars, proba):
+                    ax.text(bar.get_width() + 0.01, bar.get_y() + bar.get_height()/2,
+                            f'{p:.2f}', va='center', fontsize=7, color='#94a3b8')
+                fig.tight_layout()
+                st.pyplot(fig, use_container_width=True)
+                plt.close()
+            else:
+                st.warning("Priority model not loaded.")
+
+            # ── Task 4: RFC ──
+            st.markdown("<div class='section-title'>Task 4 — RFC Detection</div>", unsafe_allow_html=True)
+            if models['rfc']:
+                X_t4 = X[FEAT_T4] if all(c in X.columns for c in FEAT_T4) else X
+                if models['scaler']:
+                    X_t4_sc = models['scaler'].transform(X_t4)
+                else:
+                    X_t4_sc = X_t4.values
+                rfc_pred = models['rfc'].predict(X_t4_sc)[0]
+                rfc_prob = models['rfc'].predict_proba(X_t4_sc)[0][1]
+                icon = "📋" if rfc_pred == 1 else "✅"
+                msg  = "RFC likely — prepare change request" if rfc_pred == 1 else "No RFC expected"
+                st.markdown(f"""<div class='alert-rfc'>
+                    {icon} <strong>{msg}</strong><br>
+                    <span style='font-size:0.8rem;'>RFC probability: {rfc_prob:.1%}</span>
+                </div>""", unsafe_allow_html=True)
+            else:
+                st.warning("RFC model not loaded.")
+
+        else:
+            st.markdown("""
+            <div style='height:400px; display:flex; flex-direction:column;
+                        align-items:center; justify-content:center; color:#334155;
+                        border:1px dashed #1e293b; border-radius:12px; text-align:center;'>
+                <div style='font-size:2.5rem;'>⚡</div>
+                <div style='font-family:Space Mono,monospace; font-size:0.85rem; margin-top:10px;'>
+                    Fill in ticket details and click<br>Run All Predictions
+                </div>
+            </div>""", unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════
+# TAB 2 — ANALYZE
+# ═══════════════════════════════════════════════════════════════════
+with tab2:
+    st.markdown("<div class='section-title'>Upload ITSM Data for Analysis</div>", unsafe_allow_html=True)
+
+    uploaded = st.file_uploader("Upload your ITSM CSV (itsm_data.csv format)", type=["csv"])
+
+    if uploaded:
+        df = pd.read_csv(uploaded)
+
+        # Clean Handle_Time
+        df['Handle_Time_hrs'] = (
+            df['Handle_Time_hrs'].astype(str)
+            .str.replace(',', '.', regex=False)
+            .apply(pd.to_numeric, errors='coerce')
+        )
+
+        # ── KPIs
+        st.markdown("<br>", unsafe_allow_html=True)
+        k1, k2, k3, k4, k5 = st.columns(5)
+        total    = len(df)
+        hp_count = df['Priority'].isin([1,2]).sum() if 'Priority' in df.columns else 0
+        avg_ht   = df['Handle_Time_hrs'].median() if 'Handle_Time_hrs' in df.columns else 0
+        reassign = df['No_of_Reassignments'].mean() if 'No_of_Reassignments' in df.columns else 0
+        rfc_cnt  = (df['No_of_Related_Changes'] > 0).sum() if 'No_of_Related_Changes' in df.columns else 0
+
+        for col, val, label in [
+            (k1, f"{total:,}",        "Total Incidents"),
+            (k2, f"{hp_count:,}",     "High Priority (P1/P2)"),
+            (k3, f"{avg_ht:.1f}h",    "Median Handle Time"),
+            (k4, f"{reassign:.1f}",   "Avg Reassignments"),
+            (k5, f"{rfc_cnt:,}",      "RFC Tickets"),
+        ]:
+            col.markdown(f"""<div class='metric-card'>
+                <div class='metric-value'>{val}</div>
+                <div class='metric-label'>{label}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        plot_style()
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if 'Priority' in df.columns:
+                st.markdown("<div class='section-title'>Priority Distribution</div>", unsafe_allow_html=True)
+                fig, ax = plt.subplots(figsize=(5, 3))
+                vc = df['Priority'].value_counts().sort_index()
+                colors = [PRIORITY_COLORS.get(int(p), '#38bdf8') for p in vc.index]
+                ax.bar([f"P{int(p)}" for p in vc.index], vc.values, color=colors, width=0.6)
+                ax.set_ylabel("Count", fontsize=8)
+                fig.tight_layout()
+                st.pyplot(fig, use_container_width=True)
+                plt.close()
+
+        with col_b:
+            if 'No_of_Reassignments' in df.columns and 'Priority' in df.columns:
+                st.markdown("<div class='section-title'>Reassignments by Priority</div>", unsafe_allow_html=True)
+                fig, ax = plt.subplots(figsize=(5, 3))
+                df_clean = df.dropna(subset=['Priority', 'No_of_Reassignments'])
+                df_clean['Priority'] = pd.to_numeric(df_clean['Priority'], errors='coerce')
+                for p in sorted(df_clean['Priority'].dropna().unique()):
+                    data = df_clean[df_clean['Priority'] == p]['No_of_Reassignments']
+                    ax.scatter([p]*len(data), data, alpha=0.15, s=6,
+                               color=PRIORITY_COLORS.get(int(p), '#38bdf8'))
+                ax.set_xlabel("Priority", fontsize=8)
+                ax.set_ylabel("Reassignments", fontsize=8)
+                fig.tight_layout()
+                st.pyplot(fig, use_container_width=True)
+                plt.close()
+
+        col_c, col_d = st.columns(2)
+        with col_c:
+            if 'Open_Time' in df.columns:
+                st.markdown("<div class='section-title'>Monthly Incident Trend</div>", unsafe_allow_html=True)
+                df['Open_Time'] = pd.to_datetime(df['Open_Time'], errors='coerce')
+                monthly = df.groupby(df['Open_Time'].dt.to_period('M')).size()
+                monthly.index = monthly.index.to_timestamp()
+                fig, ax = plt.subplots(figsize=(5, 3))
+                ax.fill_between(monthly.index, monthly.values, alpha=0.25, color='#38bdf8')
+                ax.plot(monthly.index, monthly.values, color='#38bdf8', linewidth=2)
+                ax.set_ylabel("Incidents", fontsize=8)
+                fig.tight_layout()
+                st.pyplot(fig, use_container_width=True)
+                plt.close()
+
+        with col_d:
+            if 'Handle_Time_hrs' in df.columns and 'Priority' in df.columns:
+                st.markdown("<div class='section-title'>Handle Time Distribution (clipped 95%)</div>", unsafe_allow_html=True)
+                fig, ax = plt.subplots(figsize=(5, 3))
+                clip_val = df['Handle_Time_hrs'].quantile(0.95)
+                df_clip = df[df['Handle_Time_hrs'] < clip_val]
+                df_clip['Priority'] = pd.to_numeric(df_clip['Priority'], errors='coerce')
+                for p in sorted(df_clip['Priority'].dropna().unique()):
+                    vals = df_clip[df_clip['Priority'] == p]['Handle_Time_hrs'].dropna()
+                    ax.hist(vals, bins=20, alpha=0.5, label=f"P{int(p)}",
+                            color=PRIORITY_COLORS.get(int(p), '#38bdf8'))
+                ax.set_xlabel("Handle Time (hrs)", fontsize=8)
+                ax.legend(fontsize=7)
+                fig.tight_layout()
+                st.pyplot(fig, use_container_width=True)
+                plt.close()
+
+        # Batch predict
+        st.markdown("<br><div class='section-title'>Batch Prediction on Uploaded Data</div>", unsafe_allow_html=True)
+        if st.button("Run Batch Predictions on Dataset") and models['priority'] and models['scaler']:
+            try:
+                df_enc = df.copy()
+                from sklearn.preprocessing import LabelEncoder
+                le = LabelEncoder()
+                for col in ['CI_Cat', 'CI_Subcat', 'Category', 'Closure_Code', 'Alert_Status', 'Status']:
+                    if col in df_enc.columns:
+                        df_enc[col] = df_enc[col].fillna('Unknown')
+                        df_enc[col] = le.fit_transform(df_enc[col].astype(str))
+                df_enc['Open_Time'] = pd.to_datetime(df_enc['Open_Time'], errors='coerce')
+                df_enc['Open_Hour']       = df_enc['Open_Time'].dt.hour.fillna(9)
+                df_enc['Open_DayOfWeek']  = df_enc['Open_Time'].dt.dayofweek.fillna(0)
+                df_enc['Open_Month']      = df_enc['Open_Time'].dt.month.fillna(1)
+                df_enc['Open_Year']       = df_enc['Open_Time'].dt.year.fillna(2013)
+                df_enc['Is_Weekend']      = (df_enc['Open_DayOfWeek'] >= 5).astype(int)
+                df_enc['Is_BusinessHour'] = ((df_enc['Open_Hour'] >= 9) & (df_enc['Open_Hour'] <= 18)).astype(int)
+                ci_freq = df['CI_Name'].value_counts().to_dict() if 'CI_Name' in df.columns else {}
+                df_enc['CI_Name_freq'] = df['CI_Name'].map(ci_freq).fillna(0) if 'CI_Name' in df.columns else 0
+
+                avail = [c for c in FEATURE_COLS if c in df_enc.columns]
+                X_batch = df_enc[avail].fillna(0)
+                X_batch_sc = models['scaler'].transform(X_batch)
+                y_min = 2
+                preds = models['priority'].predict(X_batch_sc) + y_min
+                preds = np.clip(preds, 2, 5)
+                df['Predicted_Priority'] = preds
+
+                st.dataframe(
+                    df[['Incident_ID', 'Priority', 'Predicted_Priority']].head(200)
+                    if 'Incident_ID' in df.columns
+                    else df[['Priority', 'Predicted_Priority']].head(200),
+                    use_container_width=True
+                )
+                correct = (df['Priority'] == df['Predicted_Priority']).mean()
+                st.success(f"Batch complete — {len(df):,} rows | Accuracy on this upload: {correct:.1%}")
+            except Exception as e:
+                st.error(f"Batch prediction error: {e}")
+    else:
+        st.info("Upload your ITSM CSV file to start analysis. Expected format: same schema as the project dataset (Priority, Impact, Urgency, Open_Time, Handle_Time_hrs, etc.)")
+
+# ═══════════════════════════════════════════════════════════════════
+# TAB 3 — FORECAST
+# ═══════════════════════════════════════════════════════════════════
+with tab3:
+    st.markdown("<div class='section-title'>Task 2 — Incident Volume Forecasting</div>", unsafe_allow_html=True)
+
+    fc_uploaded = st.file_uploader("Upload ITSM CSV for forecasting", type=["csv"], key="fc_upload")
+
+    if fc_uploaded:
+        from sklearn.ensemble import RandomForestRegressor
+        from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+        df_fc = pd.read_csv(fc_uploaded)
+        df_fc['Open_Time'] = pd.to_datetime(df_fc['Open_Time'], errors='coerce')
+        df_fc['YearMonth_dt'] = df_fc['Open_Time'].dt.to_period('M').dt.to_timestamp()
+        monthly = df_fc.groupby('YearMonth_dt').size().reset_index(name='Incident_Count')
+        monthly = monthly.sort_values('YearMonth_dt').reset_index(drop=True)
+
+        monthly['month_num'] = monthly['YearMonth_dt'].dt.month
+        monthly['year_num']  = monthly['YearMonth_dt'].dt.year
+        monthly['t']         = range(len(monthly))
+        monthly['lag_1']     = monthly['Incident_Count'].shift(1)
+        monthly['lag_2']     = monthly['Incident_Count'].shift(2)
+        monthly['rolling_3'] = monthly['Incident_Count'].rolling(3).mean()
+        monthly['Quarter']   = monthly['YearMonth_dt'].dt.quarter
+        monthly_clean = monthly.dropna().reset_index(drop=True)
+
+        X_ts = monthly_clean[['month_num','year_num','t','lag_1','lag_2','rolling_3']]
+        y_ts = monthly_clean['Incident_Count']
+        split_idx = max(1, len(X_ts) - 6)
+        X_tr, X_te = X_ts.iloc[:split_idx], X_ts.iloc[split_idx:]
+        y_tr, y_te = y_ts.iloc[:split_idx], y_ts.iloc[split_idx:]
+
+        rf_reg = RandomForestRegressor(n_estimators=100, random_state=42)
+        rf_reg.fit(X_tr, y_tr)
+        y_pred = rf_reg.predict(X_te)
+
+        mae  = mean_absolute_error(y_te, y_pred)
+        rmse = np.sqrt(mean_squared_error(y_te, y_pred))
+        r2   = r2_score(y_te, y_pred)
+
+        m1, m2, m3 = st.columns(3)
+        for col, val, label in [
+            (m1, f"{mae:.0f}", "MAE (incidents/mo)"),
+            (m2, f"{rmse:.0f}", "RMSE"),
+            (m3, f"{r2:.2f}", "R² Score"),
+        ]:
+            col.markdown(f"""<div class='metric-card'>
+                <div class='metric-value'>{val}</div>
+                <div class='metric-label'>{label}</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        plot_style()
+
+        # Actual vs Predicted
+        st.markdown("<div class='section-title'>Actual vs Predicted — Last 6 Months</div>", unsafe_allow_html=True)
+        fig, ax = plt.subplots(figsize=(10, 3.5))
+        ax.plot(monthly_clean['YearMonth_dt'].iloc[split_idx:], y_te.values,
+                label='Actual', marker='o', color='#38bdf8', linewidth=2)
+        ax.plot(monthly_clean['YearMonth_dt'].iloc[split_idx:], y_pred,
+                label='Predicted', marker='s', linestyle='--', color='#f97316', linewidth=2)
+        ax.fill_between(monthly_clean['YearMonth_dt'].iloc[split_idx:],
+                        y_te.values, y_pred, alpha=0.1, color='#ef4444')
+        ax.legend(fontsize=9)
+        ax.set_ylabel("Incidents", fontsize=9)
+        fig.tight_layout()
+        st.pyplot(fig, use_container_width=True)
+        plt.close()
+
+        # Quarterly & Annual
+        col_q, col_a = st.columns(2)
+        forecast_df = monthly_clean.iloc[split_idx:].copy()
+        forecast_df['Predicted_Count'] = y_pred.astype(int)
+
+        with col_q:
+            st.markdown("<div class='section-title'>Quarterly Forecast</div>", unsafe_allow_html=True)
+            q_df = forecast_df.groupby(['year_num','Quarter'])['Predicted_Count'].sum().reset_index()
+            q_df.columns = ['Year','Quarter','Predicted Incidents']
+            st.dataframe(q_df, use_container_width=True, hide_index=True)
+
+        with col_a:
+            st.markdown("<div class='section-title'>Annual Forecast</div>", unsafe_allow_html=True)
+            a_df = forecast_df.groupby('year_num')['Predicted_Count'].sum().reset_index()
+            a_df.columns = ['Year','Predicted Incidents']
+            st.dataframe(a_df, use_container_width=True, hide_index=True)
+
+        # Full trend
+        st.markdown("<div class='section-title'>Full Monthly Trend (All Data)</div>", unsafe_allow_html=True)
+        fig2, ax2 = plt.subplots(figsize=(12, 3.5))
+        ax2.fill_between(monthly['YearMonth_dt'], monthly['Incident_Count'], alpha=0.15, color='#38bdf8')
+        ax2.plot(monthly['YearMonth_dt'], monthly['Incident_Count'], color='#38bdf8', linewidth=1.5)
+        ax2.set_ylabel("Incidents", fontsize=9)
+        ax2.set_title("Historical Incident Volume", fontsize=10, color='#94a3b8')
+        fig2.tight_layout()
+        st.pyplot(fig2, use_container_width=True)
+        plt.close()
+
+    else:
+        st.info("Upload your ITSM CSV to run the forecasting model.")
+
+# ═══════════════════════════════════════════════════════════════════
+# TAB 4 — DASHBOARD
+# ═══════════════════════════════════════════════════════════════════
+with tab4:
+    st.markdown("<div class='section-title'>Project Summary — PRCL-0012</div>", unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class='card'>
+        <div style='font-family:Space Mono,monospace; font-size:0.78rem; color:#38bdf8; margin-bottom:12px;'>
+            BUSINESS CONTEXT
+        </div>
+        <p style='color:#94a3b8; font-size:0.88rem; line-height:1.7; margin:0;'>
+            ABC Tech receives <strong style='color:#e2e8f0;'>22–25k IT incidents/year</strong> managed under the ITIL framework.
+            Despite mature processes, a recent customer survey rated incident management as poor.
+            This platform applies ML to predict priority, detect high-priority tickets before SLA breach,
+            forecast incident volume for resource planning, and detect RFC-triggering tickets automatically.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Model comparison table
+    st.markdown("<div class='section-title'>All Tasks — Best Model Summary</div>", unsafe_allow_html=True)
+
+    summary = pd.DataFrame([
+        {"Task": "Task 1 — High Priority Detection", "Best Model": "XGBoost Baseline",     "Accuracy": "0.98", "Primary Metric": "F1 Weighted: 0.98", "HP Recall": "0.58"},
+        {"Task": "Task 2 — Volume Forecasting",      "Best Model": "RF Regressor",          "Accuracy": "—",    "Primary Metric": "R²: 0.31, MAE: 206", "HP Recall": "—"},
+        {"Task": "Task 3 — Priority Auto-Tag",       "Best Model": "XGBoost Baseline",     "Accuracy": "0.82", "Primary Metric": "F1 Macro: 0.71",     "HP Recall": "—"},
+        {"Task": "Task 4 — RFC Prediction",          "Best Model": "Random Forest",         "Accuracy": "0.98", "Primary Metric": "F1 Macro: 0.68",     "HP Recall": "—"},
+    ])
+    st.dataframe(summary, use_container_width=True, hide_index=True)
+
+    # Visual comparison
+    plot_style()
+    st.markdown("<br><div class='section-title'>Task 3 — All Models Comparison (Accuracy & F1 Macro)</div>", unsafe_allow_html=True)
+
+    models_list = ['LR (Base)', 'DT (Base)', 'RF (Base)', 'XGB (Base)★', 'DT (Tuned)', 'RF (Tuned)', 'XGB (Tuned)']
+    acc_vals    = [0.67, 0.78, 0.80, 0.82, 0.66, 0.80, 0.80]
+    f1_vals     = [0.56, 0.66, 0.68, 0.71, 0.61, 0.68, 0.69]
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+    for ax, vals, title, color in [
+        (axes[0], acc_vals, 'Accuracy',  '#38bdf8'),
+        (axes[1], f1_vals,  'F1 Macro',  '#f97316'),
+    ]:
+        bar_colors = [color if '★' not in m else '#22c55e' for m in models_list]
+        bars = ax.barh(models_list, vals, color=bar_colors, height=0.55)
+        ax.set_xlim(0, 1.1)
+        ax.set_title(title, fontsize=10, color='#94a3b8')
+        for bar, v in zip(bars, vals):
+            ax.text(v + 0.01, bar.get_y() + bar.get_height()/2,
+                    f'{v:.2f}', va='center', fontsize=8, color='#94a3b8')
+        patch = mpatches.Patch(color='#22c55e', label='Best Model')
+        ax.legend(handles=[patch], fontsize=8, loc='lower right')
+    fig.tight_layout()
+    st.pyplot(fig, use_container_width=True)
+    plt.close()
+
+    # IT Recommendations
+    st.markdown("<br><div class='section-title'>IT Manager Recommendations</div>", unsafe_allow_html=True)
+
+    recs = [
+        ("🚨", "P1/P2 Prevention",   "Deploy binary classifier at ticket creation. Auto-escalate and notify on-call engineers before SLA breach. Model catches 6 in 10 high-priority tickets."),
+        ("🏷️", "Auto-Tag Priority",   "Route new tickets through XGBoost (0.82 acc) to auto-assign priority, eliminating manual tagging delays and reassignment cycles."),
+        ("📅", "Resource Planning",   "Monthly volume forecast (MAE: 206 tickets) supports quarterly staffing decisions. Use for Q-on-Q headcount and infrastructure capacity planning."),
+        ("🔧", "RFC Early Warning",   "RFC predictor (0.98 acc) flags tickets likely to trigger change requests — allows change managers to prepare ITIL RFC workflow proactively."),
+        ("🔍", "CI Monitoring",       "CI_Name_freq is the top SHAP feature. High-frequency failing CIs should be flagged for proactive problem management and root-cause analysis."),
+    ]
+
+    for icon, title, desc in recs:
+        st.markdown(f"""
+        <div class='card' style='display:flex; gap:1rem; align-items:flex-start; margin-bottom:0.6rem;'>
+            <div style='font-size:1.4rem; flex-shrink:0;'>{icon}</div>
+            <div>
+                <div style='font-weight:600; color:#e2e8f0; margin-bottom:4px;'>{title}</div>
+                <div style='color:#64748b; font-size:0.83rem; line-height:1.6;'>{desc}</div>
+            </div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.caption("PRCL-0012 · ITSM ML Prediction System · DataMites™ · ABC Tech · Models: XGBoost + Random Forest + StandardScaler")
