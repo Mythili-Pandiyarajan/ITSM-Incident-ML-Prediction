@@ -692,6 +692,91 @@ with tab3:
         st.pyplot(fig2, use_container_width=True)
         plt.close()
 
+        # ── Future Projection ──────────────────────────────────────
+        st.markdown("<br><div class='section-title'>Future Incident Volume Projection</div>", unsafe_allow_html=True)
+
+        n_future = st.slider("Months to project forward", min_value=3, max_value=12, value=6, step=3)
+
+        # Build future rows iteratively using last known values
+        last_row    = monthly_clean.iloc[-1]
+        last_date   = monthly_clean['YearMonth_dt'].iloc[-1]
+        history     = list(monthly_clean['Incident_Count'].values)
+        future_dates  = []
+        future_preds  = []
+
+        t_counter = int(monthly_clean['t'].iloc[-1]) + 1
+
+        for i in range(1, n_future + 1):
+            future_date = last_date + pd.DateOffset(months=i)
+            lag_1     = history[-1]
+            lag_2     = history[-2] if len(history) >= 2 else history[-1]
+            rolling_3 = np.mean(history[-3:]) if len(history) >= 3 else np.mean(history)
+
+            X_fut = pd.DataFrame([{
+                'month_num': future_date.month,
+                'year_num':  future_date.year,
+                't':         t_counter,
+                'lag_1':     lag_1,
+                'lag_2':     lag_2,
+                'rolling_3': rolling_3,
+            }])
+            pred = int(rf_reg.predict(X_fut)[0])
+            future_dates.append(future_date)
+            future_preds.append(pred)
+            history.append(pred)
+            t_counter += 1
+
+        future_df = pd.DataFrame({
+            'Month':             [d.strftime('%b %Y') for d in future_dates],
+            'Projected Incidents': future_preds,
+            'Quarter':           [d.quarter for d in future_dates],
+            'Year':              [d.year for d in future_dates],
+        })
+
+        # Plot: historical + future projection
+        plot_style()
+        fig3, ax3 = plt.subplots(figsize=(12, 4))
+
+        # Historical
+        ax3.plot(monthly_clean['YearMonth_dt'], monthly_clean['Incident_Count'],
+                 color='#38bdf8', linewidth=2, label='Historical', marker='o', markersize=3)
+        ax3.fill_between(monthly_clean['YearMonth_dt'], monthly_clean['Incident_Count'],
+                         alpha=0.1, color='#38bdf8')
+
+        # Future
+        future_ts = pd.to_datetime([d.strftime('%Y-%m-%d') for d in future_dates])
+        ax3.plot(future_ts, future_preds,
+                 color='#f97316', linewidth=2, linestyle='--', label='Projected', marker='s', markersize=5)
+        ax3.fill_between(future_ts, future_preds, alpha=0.15, color='#f97316')
+
+        # Divider line
+        ax3.axvline(x=monthly_clean['YearMonth_dt'].iloc[-1], color='#475569',
+                    linestyle=':', linewidth=1.5, label='Forecast start')
+
+        ax3.set_ylabel("Incidents", fontsize=9)
+        ax3.legend(fontsize=9)
+        ax3.set_title(f"Historical + {n_future}-Month Forward Projection", fontsize=10, color='#94a3b8')
+        fig3.tight_layout()
+        st.pyplot(fig3, use_container_width=True)
+        plt.close()
+
+        # Tables
+        col_fq, col_fa = st.columns(2)
+        with col_fq:
+            st.markdown("<div class='section-title'>Projected — By Quarter</div>", unsafe_allow_html=True)
+            fq = future_df.groupby(['Year','Quarter'])['Projected Incidents'].sum().reset_index()
+            fq['Quarter'] = 'Q' + fq['Quarter'].astype(str)
+            st.dataframe(fq, use_container_width=True, hide_index=True)
+
+        with col_fa:
+            st.markdown("<div class='section-title'>Projected — By Year</div>", unsafe_allow_html=True)
+            fa = future_df.groupby('Year')['Projected Incidents'].sum().reset_index()
+            st.dataframe(fa, use_container_width=True, hide_index=True)
+
+        st.markdown("<div class='section-title'>Month-by-Month Projection</div>", unsafe_allow_html=True)
+        st.dataframe(future_df[['Month','Projected Incidents','Quarter','Year']],
+                     use_container_width=True, hide_index=True)
+
     else:
         st.info("Upload your ITSM CSV to run the forecasting model.")
 
