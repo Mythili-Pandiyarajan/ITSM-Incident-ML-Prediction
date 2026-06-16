@@ -845,7 +845,7 @@ with tab5:
             if not api_key:
                 return "Error: GEMINI_API_KEY not found in Streamlit secrets."
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-2.0-flash")
+            model = genai.GenerativeModel("gemini-2.0-flash-lite")
             full_prompt = f"{system_prompt}\n\n{prompt}"
             response = model.generate_content(full_prompt)
             return response.text.strip()
