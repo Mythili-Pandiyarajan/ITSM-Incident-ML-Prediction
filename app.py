@@ -961,7 +961,6 @@ import re
 issue_line   = re.sub(r'(?i)^\*{0,2}issue\*{0,2}:\s*', '', issue_line).strip() or "—"
 impact_line  = re.sub(r'(?i)^\*{0,2}impact\*{0,2}:\s*', '', impact_line).strip() or "—"
 urgency_line = re.sub(r'(?i)^\*{0,2}urgency\*{0,2}:\s*', '', urgency_line).strip() or "—"
-
                 st.markdown(f"""
                 <div class='card' style='margin-top:0.8rem;'>
                     <div class='section-title' style='margin-bottom:12px;'>AI Summary</div>
