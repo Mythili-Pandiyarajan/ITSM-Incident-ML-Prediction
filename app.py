@@ -401,7 +401,6 @@ with tab1:
                     <span class='{badge_cls}' style='font-size:1.1rem; padding:6px 20px;'>{p_label}</span>
                 </div>""", unsafe_allow_html=True)
 
-                # Probability bar chart
                 plot_style()
                 fig, ax = plt.subplots(figsize=(5, 2.2))
                 classes = [f"P{i}" for i in range(2, 2+len(proba))]
@@ -460,14 +459,12 @@ with tab2:
     if uploaded:
         df = pd.read_csv(uploaded)
 
-        # Clean Handle_Time
         df['Handle_Time_hrs'] = (
             df['Handle_Time_hrs'].astype(str)
             .str.replace(',', '.', regex=False)
             .apply(pd.to_numeric, errors='coerce')
         )
 
-        # ── KPIs
         st.markdown("<br>", unsafe_allow_html=True)
         k1, k2, k3, k4, k5 = st.columns(5)
         total    = len(df)
@@ -552,7 +549,6 @@ with tab2:
                 st.pyplot(fig, use_container_width=True)
                 plt.close()
 
-        # Batch predict
         st.markdown("<br><div class='section-title'>Batch Prediction on Uploaded Data</div>", unsafe_allow_html=True)
         if st.button("Run Batch Predictions on Dataset") and models['priority'] and models['scaler']:
             try:
@@ -592,7 +588,7 @@ with tab2:
             except Exception as e:
                 st.error(f"Batch prediction error: {e}")
     else:
-        st.info("Upload your ITSM CSV file to start analysis. Expected format: same schema as the project dataset (Priority, Impact, Urgency, Open_Time, Handle_Time_hrs, etc.)")
+        st.info("Upload your ITSM CSV file to start analysis.")
 
 # ═══════════════════════════════════════════════════════════════════
 # TAB 3 — FORECAST
@@ -649,7 +645,6 @@ with tab3:
         st.markdown("<br>", unsafe_allow_html=True)
         plot_style()
 
-        # Actual vs Predicted
         st.markdown("<div class='section-title'>Actual vs Predicted — Last 6 Months</div>", unsafe_allow_html=True)
         fig, ax = plt.subplots(figsize=(10, 3.5))
         ax.plot(monthly_clean['YearMonth_dt'].iloc[split_idx:], y_te.values,
@@ -664,7 +659,6 @@ with tab3:
         st.pyplot(fig, use_container_width=True)
         plt.close()
 
-        # Quarterly & Annual
         col_q, col_a = st.columns(2)
         forecast_df = monthly_clean.iloc[split_idx:].copy()
         forecast_df['Predicted_Count'] = y_pred.astype(int)
@@ -681,7 +675,6 @@ with tab3:
             a_df.columns = ['Year','Predicted Incidents']
             st.dataframe(a_df, use_container_width=True, hide_index=True)
 
-        # Full trend
         st.markdown("<div class='section-title'>Full Monthly Trend (All Data)</div>", unsafe_allow_html=True)
         fig2, ax2 = plt.subplots(figsize=(12, 3.5))
         ax2.fill_between(monthly['YearMonth_dt'], monthly['Incident_Count'], alpha=0.15, color='#38bdf8')
@@ -692,18 +685,13 @@ with tab3:
         st.pyplot(fig2, use_container_width=True)
         plt.close()
 
-        # ── Future Projection ──────────────────────────────────────
         st.markdown("<br><div class='section-title'>Future Incident Volume Projection</div>", unsafe_allow_html=True)
-
         n_future = st.slider("Months to project forward", min_value=3, max_value=12, value=6, step=3)
 
-        # Build future rows iteratively using last known values
-        last_row    = monthly_clean.iloc[-1]
         last_date   = monthly_clean['YearMonth_dt'].iloc[-1]
         history     = list(monthly_clean['Incident_Count'].values)
         future_dates  = []
         future_preds  = []
-
         t_counter = int(monthly_clean['t'].iloc[-1]) + 1
 
         for i in range(1, n_future + 1):
@@ -711,7 +699,6 @@ with tab3:
             lag_1     = history[-1]
             lag_2     = history[-2] if len(history) >= 2 else history[-1]
             rolling_3 = np.mean(history[-3:]) if len(history) >= 3 else np.mean(history)
-
             X_fut = pd.DataFrame([{
                 'month_num': future_date.month,
                 'year_num':  future_date.year,
@@ -727,32 +714,24 @@ with tab3:
             t_counter += 1
 
         future_df = pd.DataFrame({
-            'Month':             [d.strftime('%b %Y') for d in future_dates],
+            'Month':               [d.strftime('%b %Y') for d in future_dates],
             'Projected Incidents': future_preds,
-            'Quarter':           [d.quarter for d in future_dates],
-            'Year':              [d.year for d in future_dates],
+            'Quarter':             [d.quarter for d in future_dates],
+            'Year':                [d.year for d in future_dates],
         })
 
-        # Plot: historical + future projection
         plot_style()
         fig3, ax3 = plt.subplots(figsize=(12, 4))
-
-        # Historical
         ax3.plot(monthly_clean['YearMonth_dt'], monthly_clean['Incident_Count'],
                  color='#38bdf8', linewidth=2, label='Historical', marker='o', markersize=3)
         ax3.fill_between(monthly_clean['YearMonth_dt'], monthly_clean['Incident_Count'],
                          alpha=0.1, color='#38bdf8')
-
-        # Future
         future_ts = pd.to_datetime([d.strftime('%Y-%m-%d') for d in future_dates])
         ax3.plot(future_ts, future_preds,
                  color='#f97316', linewidth=2, linestyle='--', label='Projected', marker='s', markersize=5)
         ax3.fill_between(future_ts, future_preds, alpha=0.15, color='#f97316')
-
-        # Divider line
         ax3.axvline(x=monthly_clean['YearMonth_dt'].iloc[-1], color='#475569',
                     linestyle=':', linewidth=1.5, label='Forecast start')
-
         ax3.set_ylabel("Incidents", fontsize=9)
         ax3.legend(fontsize=9)
         ax3.set_title(f"Historical + {n_future}-Month Forward Projection", fontsize=10, color='#94a3b8')
@@ -760,14 +739,12 @@ with tab3:
         st.pyplot(fig3, use_container_width=True)
         plt.close()
 
-        # Tables
         col_fq, col_fa = st.columns(2)
         with col_fq:
             st.markdown("<div class='section-title'>Projected — By Quarter</div>", unsafe_allow_html=True)
             fq = future_df.groupby(['Year','Quarter'])['Projected Incidents'].sum().reset_index()
             fq['Quarter'] = 'Q' + fq['Quarter'].astype(str)
             st.dataframe(fq, use_container_width=True, hide_index=True)
-
         with col_fa:
             st.markdown("<div class='section-title'>Projected — By Year</div>", unsafe_allow_html=True)
             fa = future_df.groupby('Year')['Projected Incidents'].sum().reset_index()
@@ -776,7 +753,6 @@ with tab3:
         st.markdown("<div class='section-title'>Month-by-Month Projection</div>", unsafe_allow_html=True)
         st.dataframe(future_df[['Month','Projected Incidents','Quarter','Year']],
                      use_container_width=True, hide_index=True)
-
     else:
         st.info("Upload your ITSM CSV to run the forecasting model.")
 
@@ -800,18 +776,15 @@ with tab4:
     </div>
     """, unsafe_allow_html=True)
 
-    # Model comparison table
     st.markdown("<div class='section-title'>All Tasks — Best Model Summary</div>", unsafe_allow_html=True)
-
     summary = pd.DataFrame([
-        {"Task": "Task 1 — High Priority Detection", "Best Model": "XGBoost Baseline",     "Accuracy": "0.98", "Primary Metric": "F1 Weighted: 0.98", "HP Recall": "0.58"},
-        {"Task": "Task 2 — Volume Forecasting",      "Best Model": "RF Regressor",          "Accuracy": "—",    "Primary Metric": "R²: 0.31, MAE: 206", "HP Recall": "—"},
-        {"Task": "Task 3 — Priority Auto-Tag",       "Best Model": "XGBoost Baseline",     "Accuracy": "0.82", "Primary Metric": "F1 Macro: 0.71",     "HP Recall": "—"},
-        {"Task": "Task 4 — RFC Prediction",          "Best Model": "Random Forest",         "Accuracy": "0.98", "Primary Metric": "F1 Macro: 0.68",     "HP Recall": "—"},
+        {"Task": "Task 1 — High Priority Detection", "Best Model": "XGBoost Baseline", "Accuracy": "0.98", "Primary Metric": "F1 Weighted: 0.98", "HP Recall": "0.58"},
+        {"Task": "Task 2 — Volume Forecasting",      "Best Model": "RF Regressor",     "Accuracy": "—",    "Primary Metric": "R²: 0.31, MAE: 206", "HP Recall": "—"},
+        {"Task": "Task 3 — Priority Auto-Tag",       "Best Model": "XGBoost Baseline", "Accuracy": "0.82", "Primary Metric": "F1 Macro: 0.71",     "HP Recall": "—"},
+        {"Task": "Task 4 — RFC Prediction",          "Best Model": "Random Forest",    "Accuracy": "0.98", "Primary Metric": "F1 Macro: 0.68",     "HP Recall": "—"},
     ])
     st.dataframe(summary, use_container_width=True, hide_index=True)
 
-    # Visual comparison
     plot_style()
     st.markdown("<br><div class='section-title'>Task 3 — All Models Comparison (Accuracy & F1 Macro)</div>", unsafe_allow_html=True)
 
@@ -821,8 +794,8 @@ with tab4:
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
     for ax, vals, title, color in [
-        (axes[0], acc_vals, 'Accuracy',  '#38bdf8'),
-        (axes[1], f1_vals,  'F1 Macro',  '#f97316'),
+        (axes[0], acc_vals, 'Accuracy', '#38bdf8'),
+        (axes[1], f1_vals,  'F1 Macro', '#f97316'),
     ]:
         bar_colors = [color if '★' not in m else '#22c55e' for m in models_list]
         bars = ax.barh(models_list, vals, color=bar_colors, height=0.55)
@@ -837,17 +810,14 @@ with tab4:
     st.pyplot(fig, use_container_width=True)
     plt.close()
 
-    # IT Recommendations
     st.markdown("<br><div class='section-title'>IT Manager Recommendations</div>", unsafe_allow_html=True)
-
     recs = [
-        ("🚨", "P1/P2 Prevention",   "Deploy binary classifier at ticket creation. Auto-escalate and notify on-call engineers before SLA breach. Model catches 6 in 10 high-priority tickets."),
-        ("🏷️", "Auto-Tag Priority",   "Route new tickets through XGBoost (0.82 acc) to auto-assign priority, eliminating manual tagging delays and reassignment cycles."),
-        ("📅", "Resource Planning",   "Monthly volume forecast (MAE: 206 tickets) supports quarterly staffing decisions. Use for Q-on-Q headcount and infrastructure capacity planning."),
-        ("🔧", "RFC Early Warning",   "RFC predictor (0.98 acc) flags tickets likely to trigger change requests — allows change managers to prepare ITIL RFC workflow proactively."),
-        ("🔍", "CI Monitoring",       "CI_Name_freq is the top SHAP feature. High-frequency failing CIs should be flagged for proactive problem management and root-cause analysis."),
+        ("🚨", "P1/P2 Prevention",  "Deploy binary classifier at ticket creation. Auto-escalate and notify on-call engineers before SLA breach. Model catches 6 in 10 high-priority tickets."),
+        ("🏷️", "Auto-Tag Priority",  "Route new tickets through XGBoost (0.82 acc) to auto-assign priority, eliminating manual tagging delays and reassignment cycles."),
+        ("📅", "Resource Planning",  "Monthly volume forecast (MAE: 206 tickets) supports quarterly staffing decisions. Use for Q-on-Q headcount and infrastructure capacity planning."),
+        ("🔧", "RFC Early Warning",  "RFC predictor (0.98 acc) flags tickets likely to trigger change requests — allows change managers to prepare ITIL RFC workflow proactively."),
+        ("🔍", "CI Monitoring",      "CI_Name_freq is the top SHAP feature. High-frequency failing CIs should be flagged for proactive problem management and root-cause analysis."),
     ]
-
     for icon, title, desc in recs:
         st.markdown(f"""
         <div class='card' style='display:flex; gap:1rem; align-items:flex-start; margin-bottom:0.6rem;'>
@@ -860,58 +830,47 @@ with tab4:
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.caption("PRCL-0012 · ITSM ML Prediction System · DataMites™ · ABC Tech · Models: XGBoost + Random Forest + StandardScaler")
-# ═══════════════════════════════════════════════════════════════════
-# TAB 5 — AI ASSISTANT (Groq LLM)
-# ═══════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════
+# TAB 5 — AI ASSISTANT (Gemini)
+# ═══════════════════════════════════════════════════════════════════
 with tab5:
 
-    st.markdown("<div class='section-title'>AI-Powered Incident Assistant — Groq LLaMA 3.3</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>AI-Powered Incident Assistant — Gemini 1.5 Flash</div>", unsafe_allow_html=True)
 
-    # ── Groq client setup ──────────────────────────────────────────
-    def get_groq_client():
+    def call_llm(prompt, system_prompt, max_tokens=400):
         try:
-            from groq import Groq
-            api_key = st.secrets.get("GROQ_API_KEY", None)
+            import google.generativeai as genai
+            api_key = st.secrets.get("GEMINI_API_KEY", None)
             if not api_key:
-                return None
-            return Groq(api_key=api_key)
-        except Exception:
-            return None
+                return "Error: GEMINI_API_KEY not found in Streamlit secrets."
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+            response = model.generate_content(full_prompt)
+            return response.text.strip()
+        except Exception as e:
+            return f"Error: {str(e)}"
 
-    groq_client = get_groq_client()
+    api_key_present = bool(st.secrets.get("GEMINI_API_KEY", None))
 
-    if not groq_client:
+    if not api_key_present:
         st.markdown("""
         <div style='background:#1a1f2e; border:1px solid #f97316; border-radius:10px;
                     padding:1.2rem 1.5rem; color:#fdba74; font-size:0.88rem; line-height:1.8;'>
-            <strong>⚙️ Setup Required — Groq API Key</strong><br><br>
-            To enable the AI Assistant, add your Groq API key to Streamlit secrets:<br><br>
+            <strong>⚙️ Setup Required — Gemini API Key</strong><br><br>
+            To enable the AI Assistant:<br><br>
             <span style='font-family:Space Mono,monospace; font-size:0.82rem; color:#94a3b8;'>
-            1. Go to your Streamlit Cloud app → Settings → Secrets<br>
-            2. Add the following line:<br><br>
-            &nbsp;&nbsp;&nbsp;&nbsp;GROQ_API_KEY = "your_key_here"<br><br>
-            3. Get a free key at console.groq.com (no credit card needed)
+            1. Go to aistudio.google.com → sign in with Google<br>
+            2. Click Get API Key → Create API key<br>
+            3. Go to Streamlit Cloud → your app → Settings → Secrets<br>
+            4. Add: GEMINI_API_KEY = "AIzaSy_xxxx..."<br>
+            5. Save and reboot the app
             </span>
         </div>
         """, unsafe_allow_html=True)
 
     else:
-
-        def call_groq(prompt, system_prompt, max_tokens=400):
-            try:
-                response = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=max_tokens,
-                    temperature=0.4
-                )
-                return response.choices[0].message.content.strip()
-            except Exception as e:
-                return f"Error: {str(e)}"
 
         # ── Section A — Ticket Summarizer ──────────────────────────
         st.markdown("""
@@ -940,51 +899,40 @@ with tab5:
                 st.warning("Please paste an incident description first.")
             else:
                 with st.spinner("Analysing incident..."):
-                    system_sum = """You are an expert IT Service Management analyst. 
+                    system_sum = """You are an expert IT Service Management analyst.
 When given a raw incident description, respond ONLY with exactly 3 lines in this format:
 ISSUE: <one sentence describing what the problem is>
 IMPACT: <one sentence describing who is affected and business impact>
 URGENCY: <one sentence on urgency signal and recommended priority (P1/P2/P3/P4)>
 No extra text, no preamble, no bullet symbols."""
+                    summary = call_llm(raw_ticket, system_sum, max_tokens=200)
 
-                    summary = call_groq(raw_ticket, system_sum, max_tokens=200)
-                st.write("DEBUG:", summary)
+                import re
                 lines = summary.strip().split("\n")
                 lines_upper = [l.upper().strip().lstrip("*# ") for l in lines]
-                raw_lines = [l.strip().lstrip("*# ") for l in lines]
-                import re
+                raw_lines   = [l.strip().lstrip("*# ") for l in lines]
                 issue_line   = next((raw_lines[i] for i, l in enumerate(lines_upper) if "ISSUE:" in l),   "—")
                 impact_line  = next((raw_lines[i] for i, l in enumerate(lines_upper) if "IMPACT:" in l),  "—")
                 urgency_line = next((raw_lines[i] for i, l in enumerate(lines_upper) if "URGENCY:" in l), "—")
-                issue_line   = re.sub(r'(?i)^\*{0,2}issue\*{0,2}:\s*', '', issue_line).strip() or "—"
-                impact_line  = re.sub(r'(?i)^\*{0,2}impact\*{0,2}:\s*', '', impact_line).strip() or "—"
+                issue_line   = re.sub(r'(?i)^\*{0,2}issue\*{0,2}:\s*',   '', issue_line).strip()   or "—"
+                impact_line  = re.sub(r'(?i)^\*{0,2}impact\*{0,2}:\s*',  '', impact_line).strip()  or "—"
                 urgency_line = re.sub(r'(?i)^\*{0,2}urgency\*{0,2}:\s*', '', urgency_line).strip() or "—"
+
                 st.markdown(f"""
                 <div class='card' style='margin-top:0.8rem;'>
                     <div class='section-title' style='margin-bottom:12px;'>AI Summary</div>
-                        <div style='background:#0f1928; border-left:3px solid #38bdf8;
-                                    padding:10px 14px; border-radius:6px;'>
-                            <span style='font-size:0.7rem; color:#38bdf8; text-transform:uppercase;
-                                         letter-spacing:0.1em;'>Issue</span><br>
-                            <span style='color:#e2e8f0; font-size:0.88rem;'>
-                                {issue_line}
-                            </span>
+                    <div style='display:flex; flex-direction:column; gap:10px;'>
+                        <div style='background:#0f1928; border-left:3px solid #38bdf8; padding:10px 14px; border-radius:6px;'>
+                            <span style='font-size:0.7rem; color:#38bdf8; text-transform:uppercase; letter-spacing:0.1em;'>Issue</span><br>
+                            <span style='color:#e2e8f0; font-size:0.88rem;'>{issue_line}</span>
                         </div>
-                        <div style='background:#0f1928; border-left:3px solid #f97316;
-                                    padding:10px 14px; border-radius:6px;'>
-                            <span style='font-size:0.7rem; color:#f97316; text-transform:uppercase;
-                                         letter-spacing:0.1em;'>Impact</span><br>
-                            <span style='color:#e2e8f0; font-size:0.88rem;'>
-                                {impact_line}
-                            </span>
+                        <div style='background:#0f1928; border-left:3px solid #f97316; padding:10px 14px; border-radius:6px;'>
+                            <span style='font-size:0.7rem; color:#f97316; text-transform:uppercase; letter-spacing:0.1em;'>Impact</span><br>
+                            <span style='color:#e2e8f0; font-size:0.88rem;'>{impact_line}</span>
                         </div>
-                        <div style='background:#0f1928; border-left:3px solid #a855f7;
-                                    padding:10px 14px; border-radius:6px;'>
-                            <span style='font-size:0.7rem; color:#a855f7; text-transform:uppercase;
-                                         letter-spacing:0.1em;'>Urgency Signal</span><br>
-                            <span style='color:#e2e8f0; font-size:0.88rem;'>
-                                {urgency_line}
-                            </span>
+                        <div style='background:#0f1928; border-left:3px solid #a855f7; padding:10px 14px; border-radius:6px;'>
+                            <span style='font-size:0.7rem; color:#a855f7; text-transform:uppercase; letter-spacing:0.1em;'>Urgency Signal</span><br>
+                            <span style='color:#e2e8f0; font-size:0.88rem;'>{urgency_line}</span>
                         </div>
                     </div>
                 </div>
@@ -1005,16 +953,14 @@ No extra text, no preamble, no bullet symbols."""
         """, unsafe_allow_html=True)
 
         col_b1, col_b2 = st.columns(2)
-
         with col_b1:
-            resp_issue     = st.text_input("Issue (one line)", placeholder="e.g. SAP portal login failure", key="resp_issue")
-            resp_user      = st.text_input("Affected user / team", placeholder="e.g. Finance department users", key="resp_user")
-            resp_priority  = st.selectbox("Predicted Priority", ["P1 — Critical", "P2 — High", "P3 — Medium", "P4 — Low", "P5 — Very Low"], key="resp_priority")
-
+            resp_issue    = st.text_input("Issue (one line)", placeholder="e.g. SAP portal login failure", key="resp_issue")
+            resp_user     = st.text_input("Affected user / team", placeholder="e.g. Finance department users", key="resp_user")
+            resp_priority = st.selectbox("Predicted Priority", ["P1 — Critical", "P2 — High", "P3 — Medium", "P4 — Low", "P5 — Very Low"], key="resp_priority")
         with col_b2:
-            resp_engineer  = st.text_input("Assigned engineer name", placeholder="e.g. Ravi Kumar", key="resp_engineer")
-            resp_eta       = st.text_input("Estimated resolution time", placeholder="e.g. 2 hours / by 3:00 PM", key="resp_eta")
-            resp_action    = st.text_input("First action being taken", placeholder="e.g. Checking patch rollback logs", key="resp_action")
+            resp_engineer = st.text_input("Assigned engineer name", placeholder="e.g. Ravi Kumar", key="resp_engineer")
+            resp_eta      = st.text_input("Estimated resolution time", placeholder="e.g. 2 hours / by 3:00 PM", key="resp_eta")
+            resp_action   = st.text_input("First action being taken", placeholder="e.g. Checking patch rollback logs", key="resp_action")
 
         generate_btn = st.button("✉️ Generate First Response", key="generate_btn")
 
@@ -1027,7 +973,6 @@ No extra text, no preamble, no bullet symbols."""
 Write a professional, concise first-response email to the affected user(s).
 Tone: calm, reassuring, action-oriented. Length: 4-6 sentences maximum.
 Do NOT use bullet points. Do NOT add a subject line. Start directly with 'Dear [User/Team],'."""
-
                     user_prompt = f"""Write a first-response email for this IT incident:
 Issue: {resp_issue}
 Affected: {resp_user if resp_user else 'user'}
@@ -1035,8 +980,7 @@ Priority: {resp_priority}
 Assigned Engineer: {resp_engineer if resp_engineer else 'our support team'}
 ETA: {resp_eta if resp_eta else 'being assessed'}
 First action: {resp_action if resp_action else 'investigation in progress'}"""
-
-                    response_text = call_groq(user_prompt, system_resp, max_tokens=300)
+                    response_text = call_llm(user_prompt, system_resp, max_tokens=300)
 
                 st.markdown(f"""
                 <div class='card' style='margin-top:0.8rem;'>
@@ -1054,4 +998,3 @@ First action: {resp_action if resp_action else 'investigation in progress'}"""
                     💡 Review before sending. Edit as needed for your specific context.
                 </div>
                 """, unsafe_allow_html=True)
-
