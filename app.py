@@ -906,6 +906,7 @@ IMPACT: <one sentence describing who is affected and business impact>
 URGENCY: <one sentence on urgency signal and recommended priority (P1/P2/P3/P4)>
 No extra text, no preamble, no bullet symbols."""
                     summary = call_llm(raw_ticket, system_sum, max_tokens=200)
+                    st.code(summary)
 
                 import re
                 lines = summary.strip().split("\n")
