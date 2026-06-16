@@ -950,9 +950,17 @@ No extra text, no preamble, no bullet symbols."""
                     summary = call_groq(raw_ticket, system_sum, max_tokens=200)
 
                 lines = summary.strip().split("\n")
-                issue_line   = next((l for l in lines if l.startswith("ISSUE:")),   "ISSUE: —")
-                impact_line  = next((l for l in lines if l.startswith("IMPACT:")),  "IMPACT: —")
-                urgency_line = next((l for l in lines if l.startswith("URGENCY:")), "URGENCY: —")
+lines_upper = [l.upper().strip().lstrip("*# ") for l in lines]
+raw_lines = [l.strip().lstrip("*# ") for l in lines]
+
+issue_line   = next((raw_lines[i] for i, l in enumerate(lines_upper) if "ISSUE:" in l),   "ISSUE: —")
+impact_line  = next((raw_lines[i] for i, l in enumerate(lines_upper) if "IMPACT:" in l),  "IMPACT: —")
+urgency_line = next((raw_lines[i] for i, l in enumerate(lines_upper) if "URGENCY:" in l), "URGENCY: —")
+
+import re
+issue_line   = re.sub(r'(?i)^\*{0,2}issue\*{0,2}:\s*', '', issue_line).strip() or "—"
+impact_line  = re.sub(r'(?i)^\*{0,2}impact\*{0,2}:\s*', '', impact_line).strip() or "—"
+urgency_line = re.sub(r'(?i)^\*{0,2}urgency\*{0,2}:\s*', '', urgency_line).strip() or "—"
 
                 st.markdown(f"""
                 <div class='card' style='margin-top:0.8rem;'>
@@ -963,7 +971,7 @@ No extra text, no preamble, no bullet symbols."""
                             <span style='font-size:0.7rem; color:#38bdf8; text-transform:uppercase;
                                          letter-spacing:0.1em;'>Issue</span><br>
                             <span style='color:#e2e8f0; font-size:0.88rem;'>
-                                {issue_line.replace("ISSUE:", "").strip()}
+                                {issue_line}
                             </span>
                         </div>
                         <div style='background:#0f1928; border-left:3px solid #f97316;
@@ -971,7 +979,7 @@ No extra text, no preamble, no bullet symbols."""
                             <span style='font-size:0.7rem; color:#f97316; text-transform:uppercase;
                                          letter-spacing:0.1em;'>Impact</span><br>
                             <span style='color:#e2e8f0; font-size:0.88rem;'>
-                                {impact_line.replace("IMPACT:", "").strip()}
+                                {impact_line}
                             </span>
                         </div>
                         <div style='background:#0f1928; border-left:3px solid #a855f7;
@@ -979,7 +987,7 @@ No extra text, no preamble, no bullet symbols."""
                             <span style='font-size:0.7rem; color:#a855f7; text-transform:uppercase;
                                          letter-spacing:0.1em;'>Urgency Signal</span><br>
                             <span style='color:#e2e8f0; font-size:0.88rem;'>
-                                {urgency_line.replace("URGENCY:", "").strip()}
+                                {urgency_line}
                             </span>
                         </div>
                     </div>
