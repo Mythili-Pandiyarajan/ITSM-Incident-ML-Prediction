@@ -7,3 +7,4 @@ scikit-learn>=1.2.0
 xgboost>=1.7.0
 imbalanced-learn>=0.10.0
 pickle5; python_version < "3.8"
+groq>=0.9.0
