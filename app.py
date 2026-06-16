@@ -832,39 +832,42 @@ with tab4:
     st.caption("PRCL-0012 · ITSM ML Prediction System · DataMites™ · ABC Tech · Models: XGBoost + Random Forest + StandardScaler")
 
 # ═══════════════════════════════════════════════════════════════════
-# TAB 5 — AI ASSISTANT (Gemini)
+# TAB 5 — AI ASSISTANT (Claude Haiku)
 # ═══════════════════════════════════════════════════════════════════
 with tab5:
 
-    st.markdown("<div class='section-title'>AI-Powered Incident Assistant — Gemini 1.5 Flash</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>AI-Powered Incident Assistant — Claude Haiku</div>", unsafe_allow_html=True)
 
     def call_llm(prompt, system_prompt, max_tokens=400):
         try:
-            import google.generativeai as genai
-            api_key = st.secrets.get("GEMINI_API_KEY", None)
+            import anthropic
+            api_key = st.secrets.get("ANTHROPIC_API_KEY", None)
             if not api_key:
-                return "Error: GEMINI_API_KEY not found in Streamlit secrets."
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            full_prompt = f"{system_prompt}\n\n{prompt}"
-            response = model.generate_content(full_prompt)
-            return response.text.strip()
+                return "Error: ANTHROPIC_API_KEY not found in Streamlit secrets."
+            client = anthropic.Anthropic(api_key=api_key)
+            message = client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return message.content[0].text.strip()
         except Exception as e:
             return f"Error: {str(e)}"
 
-    api_key_present = bool(st.secrets.get("GEMINI_API_KEY", None))
+    api_key_present = bool(st.secrets.get("ANTHROPIC_API_KEY", None))
 
     if not api_key_present:
         st.markdown("""
         <div style='background:#1a1f2e; border:1px solid #f97316; border-radius:10px;
                     padding:1.2rem 1.5rem; color:#fdba74; font-size:0.88rem; line-height:1.8;'>
-            <strong>⚙️ Setup Required — Gemini API Key</strong><br><br>
+            <strong>⚙️ Setup Required — Anthropic API Key</strong><br><br>
             To enable the AI Assistant:<br><br>
             <span style='font-family:Space Mono,monospace; font-size:0.82rem; color:#94a3b8;'>
-            1. Go to aistudio.google.com → sign in with Google<br>
-            2. Click Get API Key → Create API key<br>
+            1. Go to console.anthropic.com → sign up<br>
+            2. Go to API Keys → Create Key → copy it<br>
             3. Go to Streamlit Cloud → your app → Settings → Secrets<br>
-            4. Add: GEMINI_API_KEY = "AIzaSy_xxxx..."<br>
+            4. Add: ANTHROPIC_API_KEY = "sk-ant-xxxx..."<br>
             5. Save and reboot the app
             </span>
         </div>
@@ -906,7 +909,6 @@ IMPACT: <one sentence describing who is affected and business impact>
 URGENCY: <one sentence on urgency signal and recommended priority (P1/P2/P3/P4)>
 No extra text, no preamble, no bullet symbols."""
                     summary = call_llm(raw_ticket, system_sum, max_tokens=200)
-                    st.code(summary)
 
                 import re
                 lines = summary.strip().split("\n")
