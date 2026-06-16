@@ -312,7 +312,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─── Tabs ─────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs(["🔮  Predict", "📊  Analyze", "📈  Forecast", "🗂️  Dashboard"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔮 Predict", "📊 Analyze", "📈 Forecast", "🗂️ Dashboard", "🤖 AI Assistant"])
 
 # ═══════════════════════════════════════════════════════════════════
 # TAB 1 — PREDICT
@@ -860,3 +860,194 @@ with tab4:
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.caption("PRCL-0012 · ITSM ML Prediction System · DataMites™ · ABC Tech · Models: XGBoost + Random Forest + StandardScaler")
+# ═══════════════════════════════════════════════════════════════════
+# TAB 5 — AI ASSISTANT (Groq LLM)
+# ═══════════════════════════════════════════════════════════════════
+
+with tab5:
+
+    st.markdown("<div class='section-title'>AI-Powered Incident Assistant — Groq LLaMA 3.3</div>", unsafe_allow_html=True)
+
+    # ── Groq client setup ──────────────────────────────────────────
+    def get_groq_client():
+        try:
+            from groq import Groq
+            api_key = st.secrets.get("GROQ_API_KEY", None)
+            if not api_key:
+                return None
+            return Groq(api_key=api_key)
+        except Exception:
+            return None
+
+    groq_client = get_groq_client()
+
+    if not groq_client:
+        st.markdown("""
+        <div style='background:#1a1f2e; border:1px solid #f97316; border-radius:10px;
+                    padding:1.2rem 1.5rem; color:#fdba74; font-size:0.88rem; line-height:1.8;'>
+            <strong>⚙️ Setup Required — Groq API Key</strong><br><br>
+            To enable the AI Assistant, add your Groq API key to Streamlit secrets:<br><br>
+            <span style='font-family:Space Mono,monospace; font-size:0.82rem; color:#94a3b8;'>
+            1. Go to your Streamlit Cloud app → Settings → Secrets<br>
+            2. Add the following line:<br><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;GROQ_API_KEY = "your_key_here"<br><br>
+            3. Get a free key at console.groq.com (no credit card needed)
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    else:
+
+        def call_groq(prompt, system_prompt, max_tokens=400):
+            try:
+                response = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=max_tokens,
+                    temperature=0.4
+                )
+                return response.choices[0].message.content.strip()
+            except Exception as e:
+                return f"Error: {str(e)}"
+
+        # ── Section A — Ticket Summarizer ──────────────────────────
+        st.markdown("""
+        <div style='margin-bottom:1rem;'>
+            <div style='font-family:Space Mono,monospace; font-size:1rem; font-weight:700;
+                        color:#f1f5f9; margin-bottom:4px;'>🔍 Section A — Ticket Summarizer</div>
+            <div style='color:#475569; font-size:0.82rem;'>
+                Paste a raw incident description. The AI extracts a structured 3-line summary instantly.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        raw_ticket = st.text_area(
+            "Paste raw incident description here",
+            height=140,
+            placeholder="e.g. User reported that they cannot login to the SAP portal since 9am. "
+                         "Multiple users in the Finance department are affected. The issue started "
+                         "after last night's patch deployment. No error message shown, page just hangs.",
+            key="raw_ticket_input"
+        )
+
+        summarize_btn = st.button("🔍 Summarize Ticket", key="summarize_btn")
+
+        if summarize_btn:
+            if not raw_ticket.strip():
+                st.warning("Please paste an incident description first.")
+            else:
+                with st.spinner("Analysing incident..."):
+                    system_sum = """You are an expert IT Service Management analyst. 
+When given a raw incident description, respond ONLY with exactly 3 lines in this format:
+ISSUE: <one sentence describing what the problem is>
+IMPACT: <one sentence describing who is affected and business impact>
+URGENCY: <one sentence on urgency signal and recommended priority (P1/P2/P3/P4)>
+No extra text, no preamble, no bullet symbols."""
+
+                    summary = call_groq(raw_ticket, system_sum, max_tokens=200)
+
+                lines = summary.strip().split("\n")
+                issue_line   = next((l for l in lines if l.startswith("ISSUE:")),   "ISSUE: —")
+                impact_line  = next((l for l in lines if l.startswith("IMPACT:")),  "IMPACT: —")
+                urgency_line = next((l for l in lines if l.startswith("URGENCY:")), "URGENCY: —")
+
+                st.markdown(f"""
+                <div class='card' style='margin-top:0.8rem;'>
+                    <div class='section-title' style='margin-bottom:12px;'>AI Summary</div>
+                    <div style='display:flex; flex-direction:column; gap:10px;'>
+                        <div style='background:#0f1928; border-left:3px solid #38bdf8;
+                                    padding:10px 14px; border-radius:6px;'>
+                            <span style='font-size:0.7rem; color:#38bdf8; text-transform:uppercase;
+                                         letter-spacing:0.1em;'>Issue</span><br>
+                            <span style='color:#e2e8f0; font-size:0.88rem;'>
+                                {issue_line.replace("ISSUE:", "").strip()}
+                            </span>
+                        </div>
+                        <div style='background:#0f1928; border-left:3px solid #f97316;
+                                    padding:10px 14px; border-radius:6px;'>
+                            <span style='font-size:0.7rem; color:#f97316; text-transform:uppercase;
+                                         letter-spacing:0.1em;'>Impact</span><br>
+                            <span style='color:#e2e8f0; font-size:0.88rem;'>
+                                {impact_line.replace("IMPACT:", "").strip()}
+                            </span>
+                        </div>
+                        <div style='background:#0f1928; border-left:3px solid #a855f7;
+                                    padding:10px 14px; border-radius:6px;'>
+                            <span style='font-size:0.7rem; color:#a855f7; text-transform:uppercase;
+                                         letter-spacing:0.1em;'>Urgency Signal</span><br>
+                            <span style='color:#e2e8f0; font-size:0.88rem;'>
+                                {urgency_line.replace("URGENCY:", "").strip()}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        st.markdown("<hr style='margin:2rem 0; border-color:#1e293b;'>", unsafe_allow_html=True)
+
+        # ── Section B — Auto-Response Suggester ────────────────────
+        st.markdown("""
+        <div style='margin-bottom:1rem;'>
+            <div style='font-family:Space Mono,monospace; font-size:1rem; font-weight:700;
+                        color:#f1f5f9; margin-bottom:4px;'>✉️ Section B — Auto-Response Suggester</div>
+            <div style='color:#475569; font-size:0.82rem;'>
+                Fill in the ticket context below. The AI generates a ready-to-send first-response
+                email for your support engineer to copy instantly.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col_b1, col_b2 = st.columns(2)
+
+        with col_b1:
+            resp_issue     = st.text_input("Issue (one line)", placeholder="e.g. SAP portal login failure", key="resp_issue")
+            resp_user      = st.text_input("Affected user / team", placeholder="e.g. Finance department users", key="resp_user")
+            resp_priority  = st.selectbox("Predicted Priority", ["P1 — Critical", "P2 — High", "P3 — Medium", "P4 — Low", "P5 — Very Low"], key="resp_priority")
+
+        with col_b2:
+            resp_engineer  = st.text_input("Assigned engineer name", placeholder="e.g. Ravi Kumar", key="resp_engineer")
+            resp_eta       = st.text_input("Estimated resolution time", placeholder="e.g. 2 hours / by 3:00 PM", key="resp_eta")
+            resp_action    = st.text_input("First action being taken", placeholder="e.g. Checking patch rollback logs", key="resp_action")
+
+        generate_btn = st.button("✉️ Generate First Response", key="generate_btn")
+
+        if generate_btn:
+            if not resp_issue.strip():
+                st.warning("Please fill in the issue description at minimum.")
+            else:
+                with st.spinner("Drafting response..."):
+                    system_resp = """You are an expert IT support communication specialist.
+Write a professional, concise first-response email to the affected user(s).
+Tone: calm, reassuring, action-oriented. Length: 4-6 sentences maximum.
+Do NOT use bullet points. Do NOT add a subject line. Start directly with 'Dear [User/Team],'."""
+
+                    user_prompt = f"""Write a first-response email for this IT incident:
+Issue: {resp_issue}
+Affected: {resp_user if resp_user else 'user'}
+Priority: {resp_priority}
+Assigned Engineer: {resp_engineer if resp_engineer else 'our support team'}
+ETA: {resp_eta if resp_eta else 'being assessed'}
+First action: {resp_action if resp_action else 'investigation in progress'}"""
+
+                    response_text = call_groq(user_prompt, system_resp, max_tokens=300)
+
+                st.markdown(f"""
+                <div class='card' style='margin-top:0.8rem;'>
+                    <div class='section-title' style='margin-bottom:12px;'>Generated First Response</div>
+                    <div style='background:#0f1928; border:1px solid #1e3a5f; border-radius:8px;
+                                padding:1.2rem 1.4rem; color:#cbd5e1; font-size:0.88rem;
+                                line-height:1.8; white-space:pre-wrap; font-family:DM Sans,sans-serif;'>
+{response_text}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("""
+                <div style='font-size:0.75rem; color:#334155; margin-top:0.5rem;'>
+                    💡 Review before sending. Edit as needed for your specific context.
+                </div>
+                """, unsafe_allow_html=True)
+
