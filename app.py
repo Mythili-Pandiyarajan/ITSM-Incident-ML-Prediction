@@ -948,7 +948,7 @@ URGENCY: <one sentence on urgency signal and recommended priority (P1/P2/P3/P4)>
 No extra text, no preamble, no bullet symbols."""
 
                     summary = call_groq(raw_ticket, system_sum, max_tokens=200)
-
+                st.write("DEBUG:", summary)
                 lines = summary.strip().split("\n")
                 lines_upper = [l.upper().strip().lstrip("*# ") for l in lines]
                 raw_lines = [l.strip().lstrip("*# ") for l in lines]
